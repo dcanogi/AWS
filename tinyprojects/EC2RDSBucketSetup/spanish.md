@@ -1,8 +1,10 @@
 # Guía para Crear Recursos en AWS con AWS CLI 🚀
 
+[🔗 Versión en inglés 🌍🇺🇸](readme.md)
+
 Este documento explica los pasos para crear un grupo de seguridad, una instancia EC2, una base de datos RDS y un bucket S3 en AWS usando la CLI de AWS.
 
-[🔗 Versión en inglés 🌍🇺🇸](readme.md)
+![Diagrama](diagram.png)
 
 ## 1. Crear un Grupo de Seguridad para EC2 🔐
 Primero, creamos un grupo de seguridad para la instancia EC2.
