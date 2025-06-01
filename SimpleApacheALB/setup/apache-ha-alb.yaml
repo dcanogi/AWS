@@ -1,0 +1,164 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: High Availability Apache Web Servers behind an ALB
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+
+Resources:
+
+  ApacheVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 20.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: ApacheVPC
+
+  ApacheIGW:
+    Type: AWS::EC2::InternetGateway
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref ApacheIGW
+      VpcId: !Ref ApacheVPC
+
+  ApacheRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ApacheVPC
+
+  ApacheRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachIGW
+    Properties:
+      RouteTableId: !Ref ApacheRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref ApacheIGW
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ApacheVPC
+      CidrBlock: 20.0.1.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ApacheVPC
+      CidrBlock: 20.0.2.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+
+  Subnet1RouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet1
+      RouteTableId: !Ref ApacheRouteTable
+
+  Subnet2RouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet2
+      RouteTableId: !Ref ApacheRouteTable
+
+  ApacheSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and SSH
+      VpcId: !Ref ApacheVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  ApacheALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP to ALB
+      VpcId: !Ref ApacheVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  Instance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      ImageId: ami-0c55b159cbfafe1f0  # Amazon Linux 2 (us-east-1, actualízalo según la región)
+      SubnetId: !Ref Subnet1
+      SecurityGroupIds: [!Ref ApacheSG]
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<html>Apache 1</html>" > /var/www/html/index.html
+
+  Instance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      ImageId: ami-0c55b159cbfafe1f0  # Amazon Linux 2 (us-east-1)
+      SubnetId: !Ref Subnet2
+      SecurityGroupIds: [!Ref ApacheSG]
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<html>Apache 2</html>" > /var/www/html/index.html
+
+  ApacheTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref ApacheVPC
+      Protocol: HTTP
+      Port: 80
+      TargetType: instance
+      HealthCheckPath: /
+      Targets:
+        - Id: !Ref Instance1
+        - Id: !Ref Instance2
+
+  ApacheALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: ApacheALB
+      Scheme: internet-facing
+      Subnets: [!Ref Subnet1, !Ref Subnet2]
+      SecurityGroups: [!Ref ApacheALBSG]
+      Type: application
+
+  ApacheListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApacheALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ApacheTargetGroup
+
+Outputs:
+  LoadBalancerDNS:
+    Description: "ALB DNS"
+    Value: !GetAtt ApacheALB.DNSName
