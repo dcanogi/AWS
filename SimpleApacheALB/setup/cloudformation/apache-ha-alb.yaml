@@ -98,7 +98,7 @@ Resources:
     Properties:
       InstanceType: t2.micro
       KeyName: !Ref KeyName
-      ImageId: ami-0c55b159cbfafe1f0  # Amazon Linux 2 (us-east-1, actualízalo según la región)
+      ImageId: ami-0c55b159cbfafe1f0
       SubnetId: !Ref Subnet1
       SecurityGroupIds: [!Ref ApacheSG]
       UserData:
@@ -115,7 +115,7 @@ Resources:
     Properties:
       InstanceType: t2.micro
       KeyName: !Ref KeyName
-      ImageId: ami-0c55b159cbfafe1f0  # Amazon Linux 2 (us-east-1)
+      ImageId: ami-0c55b159cbfafe1f0
       SubnetId: !Ref Subnet2
       SecurityGroupIds: [!Ref ApacheSG]
       UserData:
