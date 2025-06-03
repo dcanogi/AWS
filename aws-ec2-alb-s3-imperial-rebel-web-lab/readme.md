@@ -40,16 +40,6 @@ When deployed, the ALB DNS will show either:
 - Serving assets from S3 to reduce instance workload
 - High availability architecture on AWS
 
-## 📁 Structure
-
-aws-ec2-alb-s3-imperial-vs-rebel-lab/
-├── empire-user-data.sh
-├── rebel-user-data.sh
-├── screenshots/
-│ ├── empire.png
-│ └── rebels.png
-├── README.md
-
 ## ☁️ S3 Hosting Tips
 
 To serve assets via S3:
