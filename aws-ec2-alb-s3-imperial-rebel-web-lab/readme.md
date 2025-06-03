@@ -19,7 +19,7 @@ Each EC2 instance represents a faction: the Galactic Empire and the Rebel Allian
 
 | Empire | Rebels |
 |--------|--------|
-| ![Empire](screenshots/empire.png) | ![Rebels](screenshots/rebels.png) |
+| ![Empire](screenshots/empire.png) | ![Rebels](screenshots/rebel.png) |
 
 ## 🌐 Access
 
