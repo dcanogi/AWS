@@ -1,0 +1,111 @@
+# CloudFormation Template - Star Wars Themed EC2 + ALB + S3
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Star Wars themed AWS Lab with EC2 (Empire + Rebels), ALB, and S3 hosted assets.
+
+Parameters:
+  KeyName:
+    Description: EC2 Key Pair
+    Type: AWS::EC2::KeyPair::KeyName
+
+Resources:
+
+  # Security Group
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and SSH
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  # Launch Config - Empire
+  EmpireLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-0c55b159cbfafe1f0
+      InstanceType: t2.micro
+      SecurityGroups:
+        - !Ref SecurityGroup
+      KeyName: !Ref KeyName
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum -y update
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          curl http://169.254.169.254/latest/meta-data/hostname > /tmp/hostname
+          echo "<html><body style='background-color:black; color:yellow; background-image:url(https://wallpapercave.com/wp/wp6609736.jpg); background-size:cover;'>
+          <h1 style='text-align:center;'>🌌 EC2 of the Empire 🌌</h1>
+          <img src='https://bucket893457935248.s3.us-east-1.amazonaws.com/aws.png' style='display:block; margin:auto; width:200px;'/>
+          </body></html>" > /var/www/html/index.html
+          systemctl restart httpd
+
+  # Launch Config - Rebels
+  RebelLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-0c55b159cbfafe1f0
+      InstanceType: t2.micro
+      SecurityGroups:
+        - !Ref SecurityGroup
+      KeyName: !Ref KeyName
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum -y update
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          curl http://169.254.169.254/latest/meta-data/hostname > /tmp/hostname
+          echo "<html><body style='background-image:url(https://wallpaperaccess.com/full/4711398.jpg); background-size:cover; text-align:center;'>
+          <h1 style='color:white;'>🔥 Rebel Base Online 🔥</h1>
+          </body></html>" > /var/www/html/index.html
+          systemctl restart httpd
+
+  # Auto Scaling Groups
+  EmpireASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet
+      LaunchConfigurationName: !Ref EmpireLaunchConfig
+      MinSize: '1'
+      MaxSize: '1'
+      DesiredCapacity: '1'
+      TargetGroupARNs:
+        - !Ref ALBTargetGroup
+      Tags:
+        - Key: Name
+          Value: EmpireEC2
+          PropagateAtLaunch: true
+
+  RebelASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet
+      LaunchConfigurationName: !Ref RebelLaunchConfig
+      MinSize: '1'
+      MaxSize: '1'
+      DesiredCapacity: '1'
+      TargetGroupARNs:
+        - !Ref ALBTargetGroup
+      Tags:
+        - Key: Name
+          Value: RebelEC2
+          PropagateAtLaunch: true
+
+  # ALB, Target Group, Listener
+
+Outputs:
+  LoadBalancerDNS:
+    Description: DNS Name of the load balancer
+    Value: !GetAtt ALB.DNSName
